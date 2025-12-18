@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Vinted Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;500;700;900&family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/list.js@2.3.1/dist/list.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="user-list">
+        <nav class="navbar">
+            <a class="navbar-brand" href="#">Vinted Stats</a>
+            
+            <!-- Desktop controls -->
+            <div class="navbar-controls desktop">
+                <div class="search-group">
+                    <input type="search" class="form-control search" placeholder="Cerca..." />
+                    <div class="calendar-popup-container">
+                        <button class="btn-calendar" id="btn-calendar-desktop" title="Filtra per data">📅</button>
+                    </div>
+                </div>
+                
+                <div class="sort-container">
+                    <button class="btn-sort" id="btn-sort-desktop">
+                        <span>Ordina</span>
+                        <span class="sort-icon">▼</span>
+                    </button>
+                    <div class="sort-dropdown" id="sort-dropdown-desktop">
+                        <button class="sort-option active" data-sort="day" data-order="asc">📅 Data (meno recente)</button>
+                        <button class="sort-option" data-sort="day" data-order="desc">📅 Data (più recente)</button>
+                        <button class="sort-option" data-sort="name" data-order="asc">🔤 Nome (A-Z)</button>
+                        <button class="sort-option" data-sort="name" data-order="desc">🔤 Nome (Z-A)</button>
+                        <button class="sort-option" data-sort="price" data-order="asc">💰 Prezzo (crescente)</button>
+                        <button class="sort-option" data-sort="price" data-order="desc">💰 Prezzo (decrescente)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hamburger menu button -->
+            <button class="hamburger" id="hamburger" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+
+        <!-- Mobile menu overlay -->
+        <div class="mobile-menu-overlay" id="mobile-overlay"></div>
+
+        <!-- Mobile menu panel -->
+        <div class="mobile-menu" id="mobile-menu">
+            <div class="navbar-controls">
+                <div class="search-group">
+                    <input type="search" class="form-control search" placeholder="Cerca..." />
+                    <div class="calendar-popup-container">
+                        <button class="btn-calendar" id="btn-calendar-mobile" title="Filtra per data">📅</button>
+                    </div>
+                </div>
+                
+                <div class="sort-container">
+                    <button class="btn-sort" id="btn-sort-mobile">
+                        <span>Ordina per...</span>
+                        <span class="sort-icon">▼</span>
+                    </button>
+                    <div class="sort-dropdown" id="sort-dropdown-mobile">
+                        <button class="sort-option active" data-sort="day" data-order="asc">📅 Data (meno recente)</button>
+                        <button class="sort-option" data-sort="day" data-order="desc">📅 Data (più recente)</button>
+                        <button class="sort-option" data-sort="name" data-order="asc">🔤 Nome (A-Z)</button>
+                        <button class="sort-option" data-sort="name" data-order="desc">🔤 Nome (Z-A)</button>
+                        <button class="sort-option" data-sort="price" data-order="asc">💰 Prezzo (crescente)</button>
+                        <button class="sort-option" data-sort="price" data-order="desc">💰 Prezzo (decrescente)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Date popup (shared) -->
+        <div class="date-popup" id="date-popup-shared">
+            <div class="date-popup-header">
+                <span class="date-popup-title">Filtra per data</span>
+                <button class="btn-close-popup close-date-popup">✕</button>
+            </div>
+            <div class="date-field">
+                <label>Da</label>
+                <input type="date" class="date-from" id="date-from" />
+            </div>
+            <div class="date-field">
+                <label>A</label>
+                <input type="date" class="date-to" id="date-to" />
+            </div>
+            <div class="date-popup-actions">
+                <button class="btn-date-action btn-date-reset reset-date">Reset</button>
+                <button class="btn-date-action btn-date-apply apply-date">Applica</button>
+            </div>
+        </div>
+        
+        <div id="buttons-container"></div>
+        <h2 id="category-title">Tutti</h2>
+        
+        <div id="chart-container">
+            <div class="chart-menu">
+                <button class="btn-chart-menu" id="btn-chart-menu" title="Opzioni grafico">⋮</button>
+                <div class="chart-menu-dropdown" id="chart-menu-dropdown">
+                    <button class="btn-chart active" data-mode="day">Giorni</button>
+                    <button class="btn-chart" data-mode="month">Mesi</button>
+                    <button class="btn-chart" data-mode="year">Anni</button>
+                </div>
+            </div>
+            <canvas id="chart"></canvas>
+        </div>
+        
+        <div id="cards-container" class="list"></div>
+    </div>
+
+    <script>
+        // ============================================
+        // GLOBAL VARIABLES
+        // ============================================
+        let userList;
+        let currentActiveButton = null;
+        let currentActiveDropdownItem = null;
+        let allCategories = [];
+        let chartMode = 'day';
+        let currentSort = { field: 'day', order: 'asc' };
+        let isMobile = window.innerWidth < 768;
+        
+        const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        
+        /**
+         * Formatta un prezzo in modo sicuro senza errori di floating point
+         * @param {number} price - Il prezzo da formattare
+         * @returns {string} - Prezzo formattato con 2 decimali
+         */
+        function formatPrice(price) {
+            if (isNaN(price) || price === null || price === undefined) {
+                return '0.00';
+            }
+            // Usa toFixed e poi parseFloat per rimuovere zeri inutili, poi di nuovo toFixed per garantire 2 decimali
+            return Number(price.toFixed(2)).toFixed(2);
+        }
+
+        /**
+         * Parsa una stringa prezzo e restituisce un numero pulito
+         * @param {string} priceString - Stringa contenente il prezzo
+         * @returns {number} - Prezzo come numero
+         */
+        function parsePrice(priceString) {
+            if (!priceString) return 0;
+            // Rimuove tutto tranne numeri, punto e virgola
+            const cleaned = priceString.replace(/[^0-9.,]/g, '').replace(',', '.').trim();
+            const price = parseFloat(cleaned);
+            return isNaN(price) ? 0 : price;
+        }
+
+        function formatDateForDisplay(dateStr) {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        function getMonthYear(dateStr) {
+            if (!dateStr || !dateStr.includes('-')) return null;
+            const parts = dateStr.split('-');
+            if (parts.length < 2) return null;
+            return `${parts[0]}-${parts[1]}`;
+        }
+
+        function getYear(dateStr) {
+            if (!dateStr || !dateStr.includes('-')) return null;
+            return dateStr.split('-')[0];
+        }
+
+        function formatMonthYear(monthYearStr) {
+            if (!monthYearStr || !monthYearStr.includes('-')) return monthYearStr;
+            const [year, month] = monthYearStr.split('-');
+            const monthIndex = parseInt(month) - 1;
+            return `${monthNames[monthIndex]} ${year}`;
+        }
+
+        // ============================================
+        // CHART SETUP
+        // ============================================
+        const ctx = document.getElementById('chart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Prezzo Medio (€)',
+                    data: [],
+                    backgroundColor: 'rgba(74, 144, 217, 0.1)',
+                    borderColor: '#4a90d9',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#1e3a5f',
+                    pointBorderColor: '#7ab8f5',
+                    pointBorderWidth: 2,
+                    pointRadius: isMobile ? 3 : 4,
+                    pointHoverRadius: isMobile ? 5 : 7,
+                    pointHoverBackgroundColor: '#4a90d9',
+                    pointHoverBorderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: isMobile ? 1.5 : 2.5,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f1c2e',
+                        titleColor: '#7ab8f5',
+                        bodyColor: '#e8eef4',
+                        borderColor: '#4a90d9',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 10,
+                        callbacks: {
+                            label: function(context) {
+                                return '€ ' + formatPrice(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: { color: 'rgba(74, 144, 217, 0.1)' },
+                        ticks: { 
+                            color: '#8899aa',
+                            font: { size: isMobile ? 10 : 12 },
+                            callback: function(value) {
+                                return '€ ' + formatPrice(value);
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { color: 'rgba(74, 144, 217, 0.05)' },
+                        ticks: { 
+                            color: '#8899aa', 
+                            maxRotation: isMobile ? 90 : 45,
+                            font: { size: isMobile ? 9 : 11 }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+
+        // ============================================
+        // CHART UPDATE
+        // ============================================
+        function updateChart() {
+            if (!userList) return;
+            
+            const visibleItems = userList.visibleItems;
+            const pricesGrouped = {};
+            
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
+            
+            visibleItems.forEach(item => {
+                const itemValues = item.values();
+                const day = itemValues.day;
+                
+                if (!day || !day.trim()) return;
+                
+                if (dateFrom && day < dateFrom) return;
+                if (dateTo && day > dateTo) return;
+                
+                const price = parsePrice(itemValues.price);
+                
+                if (price > 0) {
+                    let key;
+                    
+                    switch (chartMode) {
+                        case 'month':
+                            key = getMonthYear(day);
+                            break;
+                        case 'year':
+                            key = getYear(day);
+                            break;
+                        default:
+                            key = day;
+                    }
+                    
+                    if (key) {
+                        if (!pricesGrouped[key]) {
+                            pricesGrouped[key] = [];
+                        }
+                        pricesGrouped[key].push(price);
+                    }
+                }
+            });
+            
+            // Ordinamento corretto
+            const keys = Object.keys(pricesGrouped).sort((a, b) => {
+                const parseKey = (k) => {
+                    if (k.length === 4) return new Date(k + '-01-01');
+                    if (k.length === 7) return new Date(k + '-01');
+                    return new Date(k);
+                };
+                return parseKey(a) - parseKey(b);
+            });
+            
+            const labels = keys.map(key => {
+                switch (chartMode) {
+                    case 'month':
+                        return formatMonthYear(key);
+                    case 'year':
+                        return key;
+                    default:
+                        return formatDateForDisplay(key);
+                }
+            });
+            
+            // Calcolo media con arrotondamento corretto
+            const averagePrices = keys.map(key => {
+                const prices = pricesGrouped[key];
+                const sum = prices.reduce((a, b) => a + b, 0);
+                const avg = sum / prices.length;
+                // Arrotonda a 2 decimali in modo sicuro
+                return Number(avg.toFixed(2));
+            });
+            
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = averagePrices;
+            chart.update();
+        }
+
+        // ============================================
+        // DROPDOWN POSITIONING
+        // ============================================
+        function positionDropdowns() {
+            const viewportHeight = window.innerHeight;
+            const viewportWidth = window.innerWidth;
+            const margin = 20;
+
+            document.querySelectorAll('.dropdown').forEach(dropdown => {
+                const btn = dropdown.querySelector('.btn-ado');
+                const menu = dropdown.querySelector(':scope > .dropdown-menu');
+                
+                if (!btn || !menu) return;
+
+                dropdown.classList.remove('drop-up');
+                
+                const btnRect = btn.getBoundingClientRect();
+                
+                menu.style.visibility = 'hidden';
+                menu.style.display = 'block';
+                const menuHeight = menu.offsetHeight;
+                menu.style.display = '';
+                menu.style.visibility = '';
+                
+                const spaceBelow = viewportHeight - btnRect.bottom - margin;
+                const spaceAbove = btnRect.top - margin;
+                
+                if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+                    dropdown.classList.add('drop-up');
+                }
+            });
+
+            document.querySelectorAll('.dropdown-submenu').forEach(submenu => {
+                const item = submenu.querySelector(':scope > .dropdown-item');
+                const menu = submenu.querySelector(':scope > .dropdown-menu');
+                
+                if (!item || !menu) return;
+
+                submenu.classList.remove('drop-left', 'drop-up');
+                
+                const itemRect = item.getBoundingClientRect();
+                
+                menu.style.visibility = 'hidden';
+                menu.style.display = 'block';
+                const menuWidth = menu.offsetWidth;
+                const menuHeight = menu.offsetHeight;
+                menu.style.display = '';
+                menu.style.visibility = '';
+                
+                const spaceRight = viewportWidth - itemRect.right - margin;
+                const spaceLeft = itemRect.left - margin;
+                const spaceBelow = viewportHeight - itemRect.top - margin;
+                
+                if (spaceRight < menuWidth && spaceLeft > menuWidth) {
+                    submenu.classList.add('drop-left');
+                }
+                
+                if (spaceBelow < menuHeight) {
+                    submenu.classList.add('drop-up');
+                }
+            });
+        }
+
+        // ============================================
+        // CATEGORY TREE BUILDING
+        // ============================================
+        function buildCategoryTree(categories) {
+            const tree = {};
+            
+            categories.forEach(catPath => {
+                if (!catPath) return;
+                
+                const parts = catPath.split('/').filter(Boolean);
+                if (parts[0] === 'Categorie') parts.shift();
+                
+                let current = tree;
+                
+                parts.forEach((part, index) => {
+                    if (!current[part]) {
+                        current[part] = {
+                            _children: {},
+                            _fullPath: parts.slice(0, index + 1).join('/')
+                        };
+                    }
+                    current = current[part]._children;
+                });
+            });
+            
+            return tree;
+        }
+
+        function createSubmenu(children, depth = 1) {
+            const childKeys = Object.keys(children).filter(k => !k.startsWith('_'));
+            
+            if (childKeys.length === 0) return null;
+            
+            const ul = document.createElement('ul');
+            ul.className = 'dropdown-menu';
+            ul.setAttribute('data-depth', depth);
+            
+            childKeys.forEach(childName => {
+                const childData = children[childName];
+                const grandchildren = childData._children;
+                const hasGrandchildren = Object.keys(grandchildren).filter(k => !k.startsWith('_')).length > 0;
+                
+                const li = document.createElement('li');
+                
+                if (hasGrandchildren) {
+                    li.className = 'dropdown-submenu';
+                    
+                    const a = document.createElement('a');
+                    a.className = 'dropdown-item has-submenu';
+                    a.href = '#';
+                    a.textContent = childName;
+                    
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        filterSelection(childName, childData._fullPath, null, a);
+                    });
+                    
+                    li.appendChild(a);
+                    
+                    const submenu = createSubmenu(grandchildren, depth + 1);
+                    if (submenu) {
+                        li.appendChild(submenu);
+                    }
+                } else {
+                    const a = document.createElement('a');
+                    a.className = 'dropdown-item';
+                    a.href = '#';
+                    a.textContent = childName;
+                    
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        filterSelection(childName, childData._fullPath, null, a);
+                    });
+                    
+                    li.appendChild(a);
+                }
+                
+                ul.appendChild(li);
+            });
+            
+            return ul;
+        }
+
+        // ============================================
+        // CAROUSEL
+        // ============================================
+        function createCarousel(imageUrls, cardId) {
+            const images = imageUrls.filter(url => url && url.trim());
+            
+            if (images.length === 0) {
+                return `
+                    <div class="card-carousel">
+                        <div class="carousel-inner">
+                            <div class="carousel-slide active">
+                                <img src="https://via.placeholder.com/300x220/0f1c2e/4a90d9?text=NO+IMAGE" alt="No image">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (images.length === 1) {
+                return `
+                    <div class="card-carousel">
+                        <div class="carousel-inner">
+                            <div class="carousel-slide active">
+                                <img src="${images[0]}" alt="Product image" loading="lazy" onerror="this.src='https://via.placeholder.com/300x220/0f1c2e/4a90d9?text=NO+IMAGE'">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            const carouselId = `carousel-${cardId.replace(/[^a-zA-Z0-9]/g, '')}`;
+            
+            const slides = images.map((url, index) => `
+                <div class="carousel-slide ${index === 0 ? 'active' : ''}" data-index="${index}">
+                    <img src="${url}" alt="Product image ${index + 1}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x220/0f1c2e/4a90d9?text=NO+IMAGE'">
+                </div>
+            `).join('');
+            
+            const dots = images.map((_, index) => `
+                <span class="carousel-dot ${index === 0 ? 'active' : ''}" data-index="${index}"></span>
+            `).join('');
+            
+            return `
+                <div class="card-carousel" data-carousel-id="${carouselId}" data-total="${images.length}" data-current="0">
+                    <div class="carousel-inner">
+                        ${slides}
+                    </div>
+                    <button class="carousel-btn prev" type="button" aria-label="Previous">‹</button>
+                    <button class="carousel-btn next" type="button" aria-label="Next">›</button>
+                    <div class="carousel-indicators">
+                        ${dots}
+                    </div>
+                    <div class="image-counter">1 / ${images.length}</div>
+                </div>
+            `;
+        }
+
+        function moveCarousel(carousel, direction) {
+            if (!carousel) return;
+            
+            const total = parseInt(carousel.dataset.total);
+            let current = parseInt(carousel.dataset.current);
+            
+            current += direction;
+            if (current < 0) current = total - 1;
+            if (current >= total) current = 0;
+            
+            goToSlide(carousel, current);
+        }
+
+        function goToSlide(carousel, index) {
+            if (!carousel) return;
+            
+            const total = parseInt(carousel.dataset.total);
+            if (index < 0 || index >= total) return;
+            
+            carousel.dataset.current = index;
+            
+            const slides = carousel.querySelectorAll('.carousel-slide');
+            slides.forEach((slide, i) => {
+                slide.classList.toggle('active', i === index);
+            });
+            
+            const dots = carousel.querySelectorAll('.carousel-dot');
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+            
+            const counter = carousel.querySelector('.image-counter');
+            if (counter) {
+                counter.textContent = `${index + 1} / ${total}`;
+            }
+        }
+
+        function initCarousels() {
+            document.querySelectorAll('.card-carousel[data-carousel-id]').forEach(carousel => {
+                const total = parseInt(carousel.dataset.total);
+                if (total <= 1) return;
+                
+                // Touch/swipe support
+                let touchStartX = 0;
+                let touchEndX = 0;
+                
+                carousel.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+                
+                carousel.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    const diff = touchStartX - touchEndX;
+                    
+                    if (Math.abs(diff) > 50) {
+                        if (diff > 0) {
+                            moveCarousel(carousel, 1);
+                        } else {
+                            moveCarousel(carousel, -1);
+                        }
+                    }
+                }, { passive: true });
+                
+                const prevBtn = carousel.querySelector('.carousel-btn.prev');
+                if (prevBtn) {
+                    prevBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        moveCarousel(carousel, -1);
+                    });
+                }
+                
+                const nextBtn = carousel.querySelector('.carousel-btn.next');
+                if (nextBtn) {
+                    nextBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        moveCarousel(carousel, 1);
+                    });
+                }
+                
+                const dots = carousel.querySelectorAll('.carousel-dot');
+                dots.forEach((dot, index) => {
+                    dot.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        goToSlide(carousel, index);
+                    });
+                });
+            });
+        }
+
+        // ============================================
+        // CATEGORY TITLE
+        // ============================================
+        function updateCategoryTitle(categoryPath) {
+            const titleElement = document.getElementById('category-title');
+            
+            if (categoryPath === 'all') {
+                titleElement.innerHTML = 'Tutti';
+                return;
+            }
+            
+            const parts = categoryPath.split('/').filter(Boolean);
+            const html = parts.map((part, index) => {
+                const isLast = index === parts.length - 1;
+                return `<span class="category-part">${part}</span>${!isLast ? '<span class="separator">/</span>' : ''}`;
+            }).join('');
+            
+            titleElement.innerHTML = html;
+        }
+
+        // ============================================
+        // FILTERS
+        // ============================================
+        function updateCalendarButtonState() {
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
+            
+            document.querySelectorAll('.btn-calendar').forEach(btn => {
+                if (dateFrom || dateTo) {
+                    btn.classList.add('has-filter');
+                } else {
+                    btn.classList.remove('has-filter');
+                }
+            });
+        }
+
+        function applyDateFilter() {
+            if (!userList) return;
+            
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
+            
+            updateCalendarButtonState();
+            
+            if (!dateFrom && !dateTo) {
+                if (currentActiveButton && currentActiveButton.textContent === 'Tutti') {
+                    userList.filter();
+                } else {
+                    const currentCategory = currentActiveDropdownItem 
+                        ? currentActiveDropdownItem.textContent 
+                        : (currentActiveButton ? currentActiveButton.textContent : null);
+                    
+                    if (currentCategory) {
+                        userList.filter(item => {
+                            const itemCategory = item.values().category;
+                            return itemCategory && itemCategory.includes(currentCategory);
+                        });
+                    }
+                }
+            } else {
+                const currentCategory = currentActiveDropdownItem 
+                    ? currentActiveDropdownItem.textContent 
+                    : (currentActiveButton && currentActiveButton.textContent !== 'Tutti' 
+                        ? currentActiveButton.textContent 
+                        : null);
+                
+                userList.filter(item => {
+                    const itemValues = item.values();
+                    const itemCategory = itemValues.category;
+                    const itemDay = itemValues.day;
+                    
+                    let categoryMatch = true;
+                    if (currentCategory) {
+                        categoryMatch = itemCategory && itemCategory.includes(currentCategory);
+                    }
+                    
+                    let dateMatch = true;
+                    if (itemDay) {
+                        if (dateFrom && itemDay < dateFrom) dateMatch = false;
+                        if (dateTo && itemDay > dateTo) dateMatch = false;
+                    } else {
+                        if (dateFrom || dateTo) dateMatch = false;
+                    }
+                    
+                    return categoryMatch && dateMatch;
+                });
+            }
+            
+            updateChart();
+        }
+
+        function applySort(field, order) {
+            if (!userList) return;
+            
+            currentSort = { field, order };
+            
+            if (field === 'price') {
+                userList.sort('price', {
+                    order: order,
+                    sortFunction: (itemA, itemB, options) => {
+                        const priceA = parsePrice(itemA.values().price);
+                        const priceB = parsePrice(itemB.values().price);
+                        
+                        if (options.order === 'desc') {
+                            return priceB - priceA;
+                        }
+                        return priceA - priceB;
+                    }
+                });
+            } else {
+                userList.sort(field, { order: order });
+            }
+        }
+
+        function clearAllActiveStates() {
+            document.querySelectorAll('#buttons-container .btn-ado').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelectorAll('#buttons-container .dropdown-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            currentActiveButton = null;
+            currentActiveDropdownItem = null;
+        }
+
+        function filterSelection(filterValue, displayPath, mainButton, dropdownItem) {
+            clearAllActiveStates();
+            
+            if (mainButton) {
+                mainButton.classList.add('active');
+                currentActiveButton = mainButton;
+            }
+            
+            if (dropdownItem) {
+                dropdownItem.classList.add('active');
+                currentActiveDropdownItem = dropdownItem;
+            }
+
+            updateCategoryTitle(displayPath);
+            applyDateFilter();
+            
+            closeMobileMenu();
+        }
+
+        // ============================================
+        // MOBILE MENU
+        // ============================================
+        function openMobileMenu() {
+            document.getElementById('hamburger').classList.add('active');
+            document.getElementById('mobile-menu').classList.add('show');
+            document.getElementById('mobile-overlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileMenu() {
+            document.getElementById('hamburger').classList.remove('active');
+            document.getElementById('mobile-menu').classList.remove('show');
+            document.getElementById('mobile-overlay').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // ============================================
+        // LOAD CARDS
+        // ============================================
+        async function loadCards() {
+            try {
+                const response = await fetch('fleetinglullaby2.txt');
+                if (!response.ok) throw new Error('File non trovato');
+                
+                const text = await response.text();
+                const lines = text.split('\n');
+                
+                const ids = lines.filter((_, i) => i % 9 === 0);
+                const categories = lines.filter((_, i) => i % 9 === 1);
+                const titles = lines.filter((_, i) => i % 9 === 3);
+                const descriptions = lines.filter((_, i) => i % 9 === 4);
+                const prices = lines.filter((_, i) => i % 9 === 5);
+                const deliverPrices = lines.filter((_, i) => i % 9 === 6);
+                const days = lines.filter((_, i) => i % 9 === 7);
+                const imageLines = lines.filter((_, i) => i % 9 === 8);
+                const brand = lines.filter((_, i) => i % 9 === 3);
+
+                allCategories = categories;
+                
+                const categoryTree = buildCategoryTree(categories);
+                
+                const container = document.getElementById('cards-container');
+                container.innerHTML = '';
+                
+                ids.forEach((id, i) => {
+                    if (!id.trim()) return;
+                    
+                    const imageUrls = imageLines[i] ? imageLines[i].split(' ').filter(url => url.trim()) : [];
+                    
+                    let processedDesc = descriptions[i] || 'Nessuna descrizione';
+                    processedDesc = processedDesc.replace(/\\n/g, '\n');
+                    
+                    const dayFormatted = formatDateForDisplay(days[i] || '');
+                    
+                    // Formatta il prezzo per la card
+                    const rawPrice = prices[i] || '';
+                    const numericPrice = parsePrice(rawPrice);
+                    const displayPrice = numericPrice > 0 ? `€ ${formatPrice(numericPrice)}` : '€ --';
+                    
+                    const card = document.createElement('div');
+                    card.className = 'card filterDiv';
+                    card.innerHTML = `
+                        ${createCarousel(imageUrls, id.trim())}
+                        <div class="card-body">
+                            <h2 class="name">${titles[i] || 'Senza titolo'}</h2>
+                            <p class="category">${categories[i]}</p>
+                            <p class="day" data-raw="${days[i] || ''}">${dayFormatted ? '📅 ' + dayFormatted : ''}</p>
+                            <h3 class="brand">${brand[i] || ''}</h3>
+                            <p class="desc">${processedDesc}</p>
+                            <p class="price">${displayPrice}</p>
+                            ${deliverPrices[i] && deliverPrices[i] !== "None" ? `<p class="deliverprice">+ ${deliverPrices[i]} spedizione</p>` : ''}
+                            <a class="id" href="https://vinted.it/items/${id}" target="_blank" rel="noopener">Vedi</a>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                initCarousels();
+
+                // Build buttons
+                const btnContainer = document.getElementById('buttons-container');
+                btnContainer.innerHTML = '';
+
+                const allBtn = document.createElement('button');
+                allBtn.className = 'btn-ado active';
+                allBtn.textContent = 'Tutti';
+                allBtn.addEventListener('click', () => {
+                    filterSelection('all', 'all', allBtn, null);
+                });
+                btnContainer.appendChild(allBtn);
+                currentActiveButton = allBtn;
+
+                const topLevelCategories = Object.keys(categoryTree).filter(k => !k.startsWith('_'));
+                
+                topLevelCategories.forEach(categoryName => {
+                    const categoryData = categoryTree[categoryName];
+                    const children = categoryData._children;
+                    const hasChildren = Object.keys(children).filter(k => !k.startsWith('_')).length > 0;
+                    
+                    if (hasChildren) {
+                        const dropdownDiv = document.createElement('div');
+                        dropdownDiv.className = 'dropdown';
+                        
+                        const btn = document.createElement('button');
+                        btn.className = 'btn-ado';
+                        btn.type = 'button';
+                        btn.textContent = categoryName;
+                        
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            filterSelection(categoryName, categoryName, btn, null);
+                        });
+                        
+                        dropdownDiv.addEventListener('mouseenter', positionDropdowns);
+                        
+                        dropdownDiv.appendChild(btn);
+                        
+                        const submenu = createSubmenu(children, 1);
+                        if (submenu) {
+                            dropdownDiv.appendChild(submenu);
+                        }
+                        
+                        btnContainer.appendChild(dropdownDiv);
+                    } else {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn-ado';
+                        btn.type = 'button';
+                        btn.textContent = categoryName;
+                        
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            filterSelection(categoryName, categoryName, btn, null);
+                        });
+                        
+                        btnContainer.appendChild(btn);
+                    }
+                });
+
+                document.querySelectorAll('.dropdown-submenu').forEach(submenu => {
+                    submenu.addEventListener('mouseenter', positionDropdowns);
+                });
+
+                // Initialize list.js
+                const options = {
+                    valueNames: [
+                        'name', 
+                        'id', 
+                        'desc', 
+                        'price', 
+                        'deliverprice', 
+                        'category',
+                        { name: 'day', attr: 'data-raw' }
+                    ]
+                };
+                userList = new List('user-list', options);
+                
+                userList.sort('day', { order: 'asc' });
+                userList.on('updated', updateChart);
+                
+                updateChart();
+                
+                window.addEventListener('scroll', positionDropdowns);
+                window.addEventListener('resize', positionDropdowns);
+                
+            } catch (err) {
+                console.error('Errore:', err);
+                document.getElementById('cards-container').innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: var(--ado-blue-pale);">
+                        <h3>Errore</h3>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Hamburger
+            document.getElementById('hamburger').addEventListener('click', () => {
+                if (document.getElementById('mobile-menu').classList.contains('show')) {
+                    closeMobileMenu();
+                } else {
+                    openMobileMenu();
+                }
+            });
+
+            document.getElementById('mobile-overlay').addEventListener('click', closeMobileMenu);
+
+            // Calendar popup
+            const datePopupShared = document.getElementById('date-popup-shared');
+
+            document.querySelectorAll('.btn-calendar').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    document.querySelectorAll('.sort-dropdown').forEach(d => d.classList.remove('show'));
+                    document.querySelectorAll('.btn-sort').forEach(b => b.classList.remove('active'));
+                    
+                    datePopupShared.classList.toggle('show');
+                    btn.classList.toggle('active');
+                });
+            });
+
+            document.querySelectorAll('.close-date-popup').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    datePopupShared.classList.remove('show');
+                    document.querySelectorAll('.btn-calendar').forEach(b => b.classList.remove('active'));
+                });
+            });
+
+            document.querySelectorAll('.apply-date').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    applyDateFilter();
+                    datePopupShared.classList.remove('show');
+                    document.querySelectorAll('.btn-calendar').forEach(b => b.classList.remove('active'));
+                });
+            });
+
+            document.querySelectorAll('.reset-date').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.getElementById('date-from').value = '';
+                    document.getElementById('date-to').value = '';
+                    applyDateFilter();
+                });
+            });
+
+            // Sort dropdown
+            document.querySelectorAll('.btn-sort').forEach(btnSort => {
+                btnSort.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    datePopupShared.classList.remove('show');
+                    document.querySelectorAll('.btn-calendar').forEach(b => b.classList.remove('active'));
+                    
+                    const sortDropdown = btnSort.nextElementSibling;
+                    const isOpen = sortDropdown.classList.contains('show');
+                    
+                    document.querySelectorAll('.sort-dropdown').forEach(d => d.classList.remove('show'));
+                    document.querySelectorAll('.btn-sort').forEach(b => b.classList.remove('active'));
+                    
+                    if (!isOpen) {
+                        sortDropdown.classList.add('show');
+                        btnSort.classList.add('active');
+                    }
+                });
+            });
+
+            document.querySelectorAll('.sort-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    document.querySelectorAll('.sort-option').forEach(o => o.classList.remove('active'));
+                    option.classList.add('active');
+                    
+                    const field = option.dataset.sort;
+                    const order = option.dataset.order;
+                    
+                    applySort(field, order);
+                    
+                    document.querySelectorAll('.sort-dropdown').forEach(d => d.classList.remove('show'));
+                    document.querySelectorAll('.btn-sort').forEach(b => b.classList.remove('active'));
+                });
+            });
+
+            // Chart menu
+            const btnChartMenu = document.getElementById('btn-chart-menu');
+            const chartMenuDropdown = document.getElementById('chart-menu-dropdown');
+
+            btnChartMenu.addEventListener('click', (e) => {
+                e.stopPropagation();
+                chartMenuDropdown.classList.toggle('show');
+            });
+
+            document.querySelectorAll('.chart-menu-dropdown .btn-chart').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.chart-menu-dropdown .btn-chart').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    chartMode = btn.dataset.mode;
+                    updateChart();
+                    chartMenuDropdown.classList.remove('show');
+                });
+            });
+
+            // Close dropdowns on outside click
+            document.addEventListener('click', (e) => {
+                if (!datePopupShared.contains(e.target) && !e.target.classList.contains('btn-calendar')) {
+                    datePopupShared.classList.remove('show');
+                    document.querySelectorAll('.btn-calendar').forEach(b => b.classList.remove('active'));
+                }
+                
+                if (!e.target.closest('.sort-container')) {
+                    document.querySelectorAll('.sort-dropdown').forEach(d => d.classList.remove('show'));
+                    document.querySelectorAll('.btn-sort').forEach(b => b.classList.remove('active'));
+                }
+                
+                if (!chartMenuDropdown.contains(e.target) && !btnChartMenu.contains(e.target)) {
+                    chartMenuDropdown.classList.remove('show');
+                }
+            });
+
+            // Resize handlers
+            window.addEventListener('resize', () => {
+                isMobile = window.innerWidth < 768;
+                
+                if (window.innerWidth >= 768) {
+                    closeMobileMenu();
+                }
+                
+                // Update chart aspect ratio
+                chart.options.aspectRatio = isMobile ? 1.5 : 2.5;
+                chart.options.scales.x.ticks.maxRotation = isMobile ? 90 : 45;
+                chart.update();
+            });
+
+            // Load cards
+            loadCards();
+        });
+    </script>
+</body>
+</html>
