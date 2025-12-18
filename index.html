@@ -974,7 +974,10 @@
                 }
             });
 
-            document.getElementById('mobile-overlay').addEventListener('click', closeMobileMenu);
+            document.getElementById('mobile-overlay').addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeMobileMenu();
+            });
 
             // Calendar popup
             const datePopupShared = document.getElementById('date-popup-shared');
