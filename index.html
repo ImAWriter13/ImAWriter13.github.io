@@ -805,7 +805,7 @@
         // ============================================
         async function loadCards() {
             try {
-                const response = await fetch('fleetinglullaby2.txt');
+                const response = await fetch('fleetinglullaby.txt');
                 if (!response.ok) throw new Error('File non trovato');
                 
                 const text = await response.text();
